@@ -43,15 +43,19 @@ from errors import (
     OVERSIZED_INPUT,
     PAYLOAD_TOO_LARGE,
     RATE_LIMITED,
+    UNSUPPORTED_INPUT,
     UNSUPPORTED_MEDIA_TYPE,
     VALIDATION_ERROR,
     classify_cli_error,
     error_response,
+    ok_response,
+    register_request_id_propagation,
 )
 from db import (
     check_db,
     database_url,
     decode_proof_events_cursor,
+    find_proof_events_by_proof_id,
     find_proof_events_by_video,
     find_proof_owner,
     find_lineage_by_output_digest,
@@ -107,15 +111,6 @@ from c2pa import (
     parse_c2pa_manifest,
 )
 from logging_utils import log_structured, redact_sensitive
-from errors import (
-    INTERNAL_ERROR,
-    NOT_FOUND,
-    PAYLOAD_TOO_LARGE,
-    VALIDATION_ERROR,
-    error_response,
-    ok_response,
-    register_request_id_propagation,
-)
 from trace_fields import (
     build_trace_fields,
     format_traceparent,
@@ -143,7 +138,8 @@ from werkzeug.datastructures import ImmutableMultiDict
 # Bounded aggregation constants
 # ---------------------------------------------------------------------------
 # These MUST match the values in the Noir circuit and the Soroban contract.
-MAX_AGGREGATION_SIZE = 8
+from verifier_inputs import MAX_AGGREGATION_SIZE  # noqa: E402
+
 AGGREGATION_ELEMENT_COST = 128  # bytes per aggregated public-input element
 
 LOGGER = logging.getLogger("harpocrates.requests")
@@ -894,7 +890,6 @@ def create_app() -> Flask:
                 json.dumps(metadata, separators=(",", ":"), sort_keys=True).encode("utf-8")
             ).decode("ascii")
 
-        import shutil
         shutil.rmtree(session_dir, ignore_errors=True)
 
         return response
@@ -1661,7 +1656,7 @@ def create_app() -> Flask:
                 status=500,
             )
 
-        return jsonify({"job_id": job_id, "status": "pending"}), 202
+        return jsonify({"ok": True, "proof": proof})
 
     @app.get("/api/jobs/<int:job_id>")
     def get_job_status(job_id: int):
