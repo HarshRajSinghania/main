@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import functools
+import hmac
 import ipaddress
 import json
 import logging
@@ -141,6 +142,17 @@ from werkzeug.datastructures import ImmutableMultiDict
 from verifier_inputs import MAX_AGGREGATION_SIZE  # noqa: E402
 
 AGGREGATION_ELEMENT_COST = 128  # bytes per aggregated public-input element
+
+_PUBLIC_JOB_FIELDS = (
+    "id",
+    "type",
+    "status",
+    "progress",
+    "created_at",
+    "heartbeat_at",
+    "completed_at",
+    "failed_at",
+)
 
 LOGGER = logging.getLogger("harpocrates.requests")
 if not LOGGER.handlers:
@@ -1659,17 +1671,37 @@ def create_app() -> Flask:
 
         return jsonify({"ok": True, "proof": proof})
 
+    def _authorized_job(job_id: int) -> dict | None:
+        """Return the job only for a caller holding its capability token.
+
+        Unknown ids and wrong or missing tokens are indistinguishable (404), so
+        sequential ids cannot be enumerated.
+        """
+        job = get_job(job_id)
+        supplied = request.headers.get("X-Job-Token") or request.args.get("token") or ""
+        expected = job.get("access_token") if job else None
+        if not job or not isinstance(expected, str) or not expected:
+            return None
+        if not hmac.compare_digest(supplied.encode("utf-8"), expected.encode("utf-8")):
+            return None
+        return job
+
+    def _public_job_view(job: dict) -> dict:
+        """Allowlisted job fields: never payload secrets, metadata, or tokens."""
+        view = {key: job[key] for key in _PUBLIC_JOB_FIELDS if key in job}
+        view["result_available"] = job.get("result") is not None
+        return view
+
     @app.get("/api/jobs/<int:job_id>")
     def get_job_status(job_id: int):
-        job = get_job(job_id)
+        job = _authorized_job(job_id)
         if not job:
             return jsonify({"error": "Job not found"}), 404
-        public_job = {key: value for key, value in job.items() if key != "_trace_context"}
-        return jsonify({"ok": True, "job": public_job})
+        return jsonify({"ok": True, "job": _public_job_view(job)})
 
     @app.get("/api/jobs/<int:job_id>/download")
     def download_job_result(job_id: int):
-        job = get_job(job_id)
+        job = _authorized_job(job_id)
         if not job:
             return jsonify({"error": "Job not found"}), 404
         if job["type"] != "embed" or job["status"] != "completed":
@@ -1694,7 +1726,7 @@ def create_app() -> Flask:
 
     @app.post("/api/jobs/<int:job_id>/cancel")
     def cancel_job_endpoint(job_id: int):
-        if cancel_job(job_id):
+        if _authorized_job(job_id) and cancel_job(job_id):
             return jsonify({"ok": True, "message": "Job cancelled"})
         return jsonify({"error": "Job cannot be cancelled or not found"}), 400
 

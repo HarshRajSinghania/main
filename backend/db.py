@@ -5,6 +5,7 @@ import binascii
 import hashlib
 import logging
 import os
+import secrets
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -1128,6 +1129,9 @@ def enqueue_job(job_type: str, payload: dict[str, Any]) -> int:
     _JOBS[job_id] = {
         "id": job_id,
         "type": job_type,
+        # Capability token handed only to the submitter. Job ids are
+        # sequential, so every job endpoint requires this token as well.
+        "access_token": secrets.token_urlsafe(32),
         "payload": payload,
         "_trace_context": job_trace_context(),
         "status": "pending",
@@ -1135,6 +1139,12 @@ def enqueue_job(job_type: str, payload: dict[str, Any]) -> int:
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     return job_id
+
+
+def get_job_access_token(job_id: int) -> str | None:
+    """Return the capability token for ``job_id`` (submitter use only)."""
+    job = _JOBS.get(job_id)
+    return job.get("access_token") if job else None
 
 
 def get_job(job_id: int) -> dict[str, Any] | None:
