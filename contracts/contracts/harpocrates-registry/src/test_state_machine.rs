@@ -1530,10 +1530,10 @@ fn assert_storage_matches_model(fixture: &Fixture, model: &Model) -> CheckResult
             client.get_credential_root(&key(&fixture.env, HashDomain::CredentialRoot, root));
         match (actual, model.credential_roots[root as usize]) {
             (None, RootState::Missing) => {}
-            (Some(record), RootState::Active) if record.active => {
+            (Some(record), RootState::Active) if record.status == STATUS_REGISTERED => {
                 assert_credential_root_record_matches(fixture, model, root, &record)?;
             }
-            (Some(record), RootState::Revoked) if !record.active => {
+            (Some(record), RootState::Revoked) if record.status == STATUS_REVOKED => {
                 assert_credential_root_record_matches(fixture, model, root, &record)?;
             }
             (None, expected) => {
@@ -1543,8 +1543,8 @@ fn assert_storage_matches_model(fixture: &Fixture, model: &Model) -> CheckResult
             }
             (Some(record), expected) => {
                 return Err(format!(
-                    "credential root slot {root} active={} model={expected:?}",
-                    record.active
+                    "credential root slot {root} status={} model={expected:?}",
+                    record.status
                 ));
             }
         }
