@@ -99,6 +99,7 @@ fn registers_all_identity_tiers() {
     let issuer = Address::generate(&env);
 
     client.init(&admin);
+    client.set_verifier(&admin, &env.register(MockNoirVerifier, ()));
     client.add_issuer(&admin, &issuer, &bytes32(&env, 9));
     client.add_credential_root(&admin, &bytes32(&env, 5), &bytes32(&env, 10));
 
@@ -144,6 +145,7 @@ fn rejects_reused_nullifier() {
     let admin = Address::generate(&env);
 
     client.init(&admin);
+    client.set_verifier(&admin, &env.register(MockNoirVerifier, ()));
     client.add_credential_root(&admin, &bytes32(&env, 5), &bytes32(&env, 10));
     client.register_anonymous(
         &bytes32(&env, 1),

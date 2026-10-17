@@ -362,7 +362,12 @@ fn enforces_the_per_parent_fanout_cap() {
         &bytes32(&env, 0x80),
         &1,
     );
-    assert_eq!(overflow, Err(Ok(soroban_sdk::Error::from_contract_error(RegistryError::LineageFanOutSaturated as u32))));
+    assert_eq!(
+        overflow,
+        Err(Ok(soroban_sdk::Error::from_contract_error(
+            RegistryError::LineageFanOutSaturated as u32
+        )))
+    );
     assert_eq!(
         client.get_lineage_child_count(&evidence),
         MAX_LINEAGE_FANOUT
@@ -404,7 +409,7 @@ fn a_parent_budget_is_shared_by_every_derivative_that_names_it() {
     assert_eq!(
         result,
         Err(Ok(soroban_sdk::Error::from_contract_error(
-            RegistryError::LineageFanOutExceeded as u32
+            RegistryError::LineageFanOutSaturated as u32
         )))
     );
 }
@@ -656,7 +661,12 @@ fn rejects_registration_of_an_existing_output_digest() {
         &bytes32(&env, 0x11),
         &1,
     );
-    assert_eq!(replayed, Err(Ok(soroban_sdk::Error::from_contract_error(RegistryError::DuplicateLineage as u32))));
+    assert_eq!(
+        replayed,
+        Err(Ok(soroban_sdk::Error::from_contract_error(
+            RegistryError::DuplicateLineage as u32
+        )))
+    );
 
     assert_eq!(client.get_lineage(&bytes32(&env, 0x11)).unwrap(), original);
     // The refused attempt did not create a second edge from the parent.

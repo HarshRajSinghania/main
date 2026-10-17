@@ -277,7 +277,10 @@ fn deployment_fixture_init_state_is_consistent() {
     // No proofs yet.
     let unknown_proof = slot(&f.env, domains::PROOF, 0xFF);
     assert!(client.get_proof(&unknown_proof).is_none());
-    assert!(!client.has_nullifier(&client.get_verifier().unwrap(), &slot(&f.env, domains::NULLIFIER, 0)));
+    assert!(!client.has_nullifier(
+        &client.get_verifier().unwrap(),
+        &slot(&f.env, domains::NULLIFIER, 0)
+    ));
 }
 
 #[test]
@@ -661,7 +664,7 @@ fn deployment_fixture_legacy_upgrade_preserves_deployed_state() {
 
     assert_eq!(
         client.get_storage_schema_version(),
-        SchemaVersion::V1 as u32
+        SchemaVersion::V2 as u32
     );
     assert_eq!(f.env.events().all().events().len(), 0);
     assert_eq!(client.get_proof(&anonymous_id), Some(anonymous));

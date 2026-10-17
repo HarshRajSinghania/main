@@ -2089,7 +2089,11 @@ impl HarpocratesRegistry {
         env.storage()
             .persistent()
             .set(&DataKey::CredentialRootV2(credential_root.clone()), &record);
-        CredentialRootExpired { credential_root, expired_at: record.expires_at }.publish(&env);
+        CredentialRootExpired {
+            credential_root,
+            expired_at: record.expires_at,
+        }
+        .publish(&env);
     }
 
     pub fn get_credential_root(
@@ -2630,9 +2634,10 @@ impl HarpocratesRegistry {
                 proof,
             );
 
-            env.storage()
-                .persistent()
-                .set(&DataKey::VerifierNullifier(verifier, parsed.nullifier.clone()), &true);
+            env.storage().persistent().set(
+                &DataKey::VerifierNullifier(verifier, parsed.nullifier.clone()),
+                &true,
+            );
 
             let expires_at = compute_expires_at(&env);
             save_record(
@@ -2679,9 +2684,10 @@ impl HarpocratesRegistry {
                 proof,
             );
 
-            env.storage()
-                .persistent()
-                .set(&DataKey::VerifierNullifier(verifier, parsed.nullifier.clone()), &true);
+            env.storage().persistent().set(
+                &DataKey::VerifierNullifier(verifier, parsed.nullifier.clone()),
+                &true,
+            );
 
             let expires_at = compute_expires_at(&env);
             save_record(
@@ -2853,9 +2859,10 @@ impl HarpocratesRegistry {
             let element_proof_id = derive_element_proof_id(&env, &batch_id, i);
 
             // Consume the nullifier.
-            env.storage()
-                .persistent()
-                .set(&DataKey::VerifierNullifier(verifier.clone(), element.nullifier.clone()), &true);
+            env.storage().persistent().set(
+                &DataKey::VerifierNullifier(verifier.clone(), element.nullifier.clone()),
+                &true,
+            );
 
             let record = save_record(
                 &env,
@@ -3486,10 +3493,16 @@ impl HarpocratesRegistry {
     }
 
     pub fn has_nullifier(env: Env, verifier: Address, nullifier: BytesN<32>) -> bool {
-        if env.storage().persistent().has(&DataKey::VerifierNullifier(verifier, nullifier.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::VerifierNullifier(verifier, nullifier.clone()))
+        {
             true
         } else {
-            env.storage().persistent().has(&DataKey::Nullifier(nullifier))
+            env.storage()
+                .persistent()
+                .has(&DataKey::Nullifier(nullifier))
         }
     }
 
@@ -3866,9 +3879,10 @@ impl HarpocratesRegistry {
             proof,
         );
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::VerifierNullifier(verifier, parsed.nullifier.clone()), &true);
+        env.storage().persistent().set(
+            &DataKey::VerifierNullifier(verifier, parsed.nullifier.clone()),
+            &true,
+        );
 
         NonRevocationChecked {
             credential_root: parsed.credential_root,
@@ -4182,9 +4196,10 @@ impl HarpocratesRegistry {
             proof,
         );
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::VerifierNullifier(verifier, parsed.nullifier.clone()), &true);
+        env.storage().persistent().set(
+            &DataKey::VerifierNullifier(verifier, parsed.nullifier.clone()),
+            &true,
+        );
 
         SelectiveDisclosureVerified {
             schema_hash: parsed.schema_hash,
@@ -4267,7 +4282,11 @@ impl HarpocratesRegistry {
         let next_cursor = if idx < slot_len {
             // Check whether any remaining slot is populated.
             let has_more = slots[idx as usize..].iter().any(|s| s.is_some());
-            if has_more { Some(idx) } else { None }
+            if has_more {
+                Some(idx)
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -4762,8 +4781,7 @@ impl HarpocratesRegistry {
             panic_with_error!(&env, RegistryError::ReceiptAlreadyCommitted);
         }
 
-        if Self::get_proof_status(env.clone(), proof_id.clone()) != ProofVerificationStatus::Valid
-        {
+        if Self::get_proof_status(env.clone(), proof_id.clone()) != ProofVerificationStatus::Valid {
             panic_with_error!(&env, RegistryError::ReceiptProofUnavailable);
         }
         if receipt_digest == BytesN::from_array(&env, &[0u8; 32]) {
@@ -4847,13 +4865,7 @@ fn require_admin_role_available(env: &Env, candidate: &Address) {
         .storage()
         .persistent()
         .get(&DataKey::Issuer(candidate.clone()));
-    if matches!(
-        issuer_record,
-        Some(IssuerRecord {
-            active: true,
-            ..
-        })
-    ) {
+    if matches!(issuer_record, Some(IssuerRecord { active: true, .. })) {
         panic_with_error!(env, RegistryError::RoleConflict);
     }
 }
@@ -5118,10 +5130,18 @@ fn get_credential_root_record(env: &Env, credential_root: &BytesN<32>) -> Creden
         return record;
     }
     let key_v1 = DataKey::CredentialRoot(credential_root.clone());
-    if let Some(v1) = env.storage().persistent().get::<_, CredentialRootRecordV1>(&key_v1) {
+    if let Some(v1) = env
+        .storage()
+        .persistent()
+        .get::<_, CredentialRootRecordV1>(&key_v1)
+    {
         return CredentialRootRecord {
             metadata_hash: v1.metadata_hash,
-            status: if v1.active { STATUS_REGISTERED } else { STATUS_REVOKED },
+            status: if v1.active {
+                STATUS_REGISTERED
+            } else {
+                STATUS_REVOKED
+            },
             issued_at: v1.issued_at,
             expires_at: 0,
         };
@@ -5165,8 +5185,7 @@ fn get_verifier_rotation_state(env: &Env) -> VerifierState {
 fn collect_verifier_slots(env: &Env) -> [Option<VerifierEntry>; 3] {
     let active_addr: Option<Address> = env.storage().persistent().get(&DataKey::Verifier);
 
-    let state_opt: Option<VerifierState> =
-        env.storage().persistent().get(&DataKey::VerifierState);
+    let state_opt: Option<VerifierState> = env.storage().persistent().get(&DataKey::VerifierState);
 
     let active_entry = active_addr.map(|addr| VerifierEntry {
         address: addr,
@@ -5196,7 +5215,9 @@ fn require_active_credential_root(env: &Env, credential_root: &BytesN<32>) {
     if record.status == STATUS_REVOKED {
         panic_with_error!(env, RegistryError::RevokedCredentialRoot);
     }
-    if record.status == STATUS_EXPIRED || (record.expires_at > 0 && env.ledger().timestamp() >= record.expires_at) {
+    if record.status == STATUS_EXPIRED
+        || (record.expires_at > 0 && env.ledger().timestamp() >= record.expires_at)
+    {
         panic_with_error!(env, RegistryError::ExpiredCredentialRoot);
     }
 }
@@ -6227,9 +6248,10 @@ fn dispatch_timelocked_action(env: &Env, proposal: &TimelockProposal) {
         4 => {
             let mut record = get_credential_root_record(env, &proposal.payload);
             record.status = STATUS_REVOKED;
-            env.storage()
-                .persistent()
-                .set(&DataKey::CredentialRootV2(proposal.payload.clone()), &record);
+            env.storage().persistent().set(
+                &DataKey::CredentialRootV2(proposal.payload.clone()),
+                &record,
+            );
             CredentialRootRevoked {
                 credential_root: proposal.payload.clone(),
             }
@@ -6239,9 +6261,10 @@ fn dispatch_timelocked_action(env: &Env, proposal: &TimelockProposal) {
             let mut record = get_credential_root_record(env, &proposal.payload);
             record.status = STATUS_EXPIRED;
             record.expires_at = env.ledger().timestamp();
-            env.storage()
-                .persistent()
-                .set(&DataKey::CredentialRootV2(proposal.payload.clone()), &record);
+            env.storage().persistent().set(
+                &DataKey::CredentialRootV2(proposal.payload.clone()),
+                &record,
+            );
             CredentialRootExpired {
                 credential_root: proposal.payload.clone(),
                 expired_at: record.expires_at,
@@ -6414,9 +6437,13 @@ mod test_issuer_rotation;
 #[cfg(test)]
 mod test_lineage;
 #[cfg(test)]
+mod test_list_verifiers;
+#[cfg(test)]
 mod test_metadata_envelope;
 #[cfg(test)]
 mod test_pause;
+#[cfg(test)]
+mod test_receipt;
 #[cfg(test)]
 mod test_registration_replay;
 #[cfg(test)]
@@ -6434,10 +6461,6 @@ pub mod test_timelock;
 #[cfg(test)]
 mod test_timestamp_claim;
 #[cfg(test)]
-mod test_list_verifiers;
-#[cfg(test)]
 mod test_upgrade_compat;
 #[cfg(test)]
 mod test_verifier_versions;
-#[cfg(test)]
-mod test_receipt;
