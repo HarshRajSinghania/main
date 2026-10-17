@@ -2844,6 +2844,18 @@ impl HarpocratesRegistry {
             if Self::has_nullifier(env.clone(), verifier.clone(), element.nullifier.clone()) {
                 panic_with_error!(&env, RegistryError::DuplicateNullifier);
             }
+
+            // Storage checks cannot see elements of this same batch, so reject
+            // intra-batch reuse explicitly.
+            for j in 0..i {
+                let earlier = &parsed.elements[j as usize];
+                if earlier.nullifier == element.nullifier {
+                    panic_with_error!(&env, RegistryError::DuplicateNullifier);
+                }
+                if earlier.video_hash == element.video_hash {
+                    panic_with_error!(&env, RegistryError::DuplicateVideo);
+                }
+            }
         }
 
         // All checks passed — persist every element.
@@ -6411,6 +6423,8 @@ pub(crate) mod event_test_utils {
 #[cfg(test)]
 mod test;
 #[cfg(test)]
+mod test_aggregation;
+#[cfg(test)]
 mod test_auth;
 #[cfg(test)]
 mod test_budget;
@@ -6434,6 +6448,8 @@ mod test_identity_tier_properties;
 mod test_invariants;
 #[cfg(test)]
 mod test_issuer_rotation;
+#[cfg(test)]
+mod test_lifecycle;
 #[cfg(test)]
 mod test_lineage;
 #[cfg(test)]
