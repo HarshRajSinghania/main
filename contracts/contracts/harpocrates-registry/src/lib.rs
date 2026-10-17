@@ -2561,38 +2561,20 @@ impl HarpocratesRegistry {
         credential_root: BytesN<32>,
         proof: Bytes,
     ) -> ProofRecord {
-        require_domain_unpaused(&env, PAUSE_DOMAIN_TIER1_REGISTRATION);
-        require_unique(&env, &proof_id, &video_hash);
-
-        let verifier = get_active_verifier(&env);
-        if Self::has_nullifier(env.clone(), verifier.clone(), nullifier.clone()) {
-            panic_with_error!(&env, RegistryError::DuplicateNullifier);
-        }
-
-        if !verify_demo_zk_boundary(&proof, &credential_root) {
-            panic_with_error!(&env, RegistryError::InvalidProof);
-        }
-        require_active_credential_root(&env, &credential_root);
-
-        env.storage()
-            .persistent()
-            .set(&DataKey::VerifierNullifier(verifier, nullifier.clone()), &true);
-
-        let expires_at = compute_expires_at(&env);
-        let record = ProofRecord {
+        // The proof is never trusted on its own: the v1 Silent Witness public
+        // inputs are rebuilt from the supplied fields and the whole statement
+        // goes through the external verifier, exactly like
+        // `register_anonymous_verified`.
+        let public_inputs =
+            build_silent_witness_v1_public_inputs(&env, &video_hash, &credential_root, &nullifier);
+        Self::register_anonymous_verified(
+            env,
             video_hash,
             metadata_hash,
-            tier: TIER_SILENT_WITNESS,
-            status: STATUS_REGISTERED,
-            created_at: env.ledger().timestamp(),
-            expires_at,
-            source: None,
-            issuer: None,
-            nullifier: Some(nullifier),
-            batch_size: 0,
-        };
-        save_record(&env, &proof_id, record.clone(), None);
-        record
+            proof_id,
+            public_inputs,
+            proof,
+        )
     }
 
     pub fn register_anonymous_verified(
@@ -6026,8 +6008,22 @@ fn parse_aggregated_public_inputs(
     }
 }
 
-fn verify_demo_zk_boundary(proof: &Bytes, credential_root: &BytesN<32>) -> bool {
-    !proof.is_empty() && credential_root.len() == 32
+/// Encode the 160-byte v1 Silent Witness public-input frame parsed by
+/// `parse_silent_witness_public_inputs`.
+fn build_silent_witness_v1_public_inputs(
+    env: &Env,
+    video_hash: &BytesN<32>,
+    credential_root: &BytesN<32>,
+    nullifier: &BytesN<32>,
+) -> Bytes {
+    let video = video_hash.to_array();
+    let mut frame = [0u8; 160];
+    frame[16..32].copy_from_slice(&video[..16]);
+    frame[48..64].copy_from_slice(&video[16..]);
+    frame[64..96].copy_from_slice(&credential_root.to_array());
+    frame[96..128].copy_from_slice(&nullifier.to_array());
+    frame[128..160].copy_from_slice(&expected_domain_tag(env).to_array());
+    Bytes::from_array(env, &frame)
 }
 
 // ---------------------------------------------------------------------------
