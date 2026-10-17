@@ -273,6 +273,7 @@ def create_app() -> Flask:
         max_queue=config.max_queue_size,
         max_per_identity=config.max_concurrent_per_identity,
         timeout_seconds=config.admission_timeout_seconds,
+        trusted_proxies=config.trusted_proxies,
     )
 
     @app.before_request
