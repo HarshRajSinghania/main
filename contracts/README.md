@@ -29,7 +29,7 @@ dependency, a disabled optimization, a truncated artifact) fail CI before
 they can be deployed.
 
 - Constants live in `contracts/harpocrates-registry/src/wasm_budget.rs`:
-  `MAX_WASM_SIZE_BYTES = 128_000` (just under Soroban's 128 KiB upload cap),
+  `MAX_WASM_SIZE_BYTES = 130_560` (just under Soroban's 128 KiB upload cap),
   `MIN_WASM_SIZE_BYTES = 10_000`,
   `WASM_SIZE_REGRESSION_BAND_PCT = 15`, plus a typed `WasmBudgetError`
   contract (`ArtifactTooLarge`, `ArtifactTooSmall`, `MissingArtifact`).
